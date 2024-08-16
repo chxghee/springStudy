@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace= "kr.bit.mapper.BoardMapper">
+
+	<!-- 타입에 따른 쿼리문을 만들어 놓고 include해서 사용  -->
+	<sql id= "search">
+		<if test= "type=='writer'">
+			where writer like concat('%', #{keyword}, '%')
+		</if>
+		
+		<if test= "type=='title'">
+			where title like concat('%', #{keyword}, '%')
+		</if>
+		
+		<if test= "type=='content'">
+			where content like concat('%', #{keyword}, '%')
+		</if>
+		
+	</sql>
+
+	<select id ="getList" parameterType = "kr.bit.entity.Criteria" resultType= "kr.bit.entity.Board">
+		select * from tblBoard 
+		<include refid="search"/>		
+		order by boardGroup desc, boardSequence asc
+		limit #{pageStart}, #{perPageNum}
+	</select>
+	
+	<insert id= "insert" parameterType= "kr.bit.entity.Board">
+	
+		insert into
+		tblBoard(idx, memID, title, content, writer, boardGroup, boardSequence, boardLevel, boardAvailable)
+			select IFNULL(MAX(idx) + 1, 1), #{memID}, #{title}, #{content}, #{writer},
+					IFNULL(MAX(boardGroup) + 1, 0), 0, 0, 1
+			from tblBoard 
+	
+	</insert>
+
+	<insert id= "insertSelectKey" parameterType= "kr.bit.entity.Board">
+	
+		<!-- insert 전에 select 를 해서 키 값을 가져온 다음 insert 진행  -->
+		<!--  파라미터로 받은vo 에 값을 먼저 select하고 그 값을 resultTyp인 vo 에 저장하고 난 후 뒤의 쿼리 실행 -->
+		<selectKey keyProperty="idx,boardGroup" resultType="kr.bit.entity.Board" order="BEFORE">
+        select IFNULL(max(idx)+1, 1) as idx,
+               IFNULL(max(boardGroup)+1, 0) as boardGroup
+        from tblBoard      
+		</selectKey>
+	
+		insert into
+		tblBoard(idx, memID, title, content, writer, boardGroup, boardSequence, boardLevel, boardAvailable)
+		values(#{idx}, #{memID}, #{title}, #{content}, #{writer}, #{boardGroup},0 ,0 , 1)
+	
+	</insert>
+	
+	
+	<select id="login" resultType="kr.bit.entity.Member" parameterType="kr.bit.entity.Member">
+    	select * 
+    	from tblMember 
+    	where memID=#{memID} and memPwd=#{memPwd}
+  	</select>
+  	
+  	<select id = "read" resultType= "kr.bit.entity.Board">
+  		select * 
+  		from tblBoard
+  		where idx = #{idx}
+  	</select>
+  	
+  	<update id= "update" parameterType="kr.bit.entity.Board">
+  		update tblBoard
+  		set title = #{title}, content = #{content}
+  		where idx = #{idx}
+  	
+  	</update>
+  	
+  	<delete id="delete">
+  		update tblBoard
+  		set boardAvailable = 0
+  		where idx = #{idx}
+  	</delete>
+  	
+  	<update id="replySeqUpdate" parameterType= "kr.bit.entity.Board">
+  		update tblBoard
+  		set boardSequence = boardSequence + 1
+  		where boardGroup = #{boardGroup} and boardSequence > #{boardSequence}
+  	</update>
+  	
+  	<insert id="replyInsert" parameterType= "kr.bit.entity.Board">
+  		
+		<selectKey keyProperty="idx" resultType="kr.bit.entity.Board" order="BEFORE">
+	        select IFNULL(max(idx)+1, 1) as idx
+	        from tblBoard      
+		</selectKey>
+	
+			insert 
+			into tblBoard(idx, memID, title, content, writer, boardGroup, boardSequence, boardLevel, boardAvailable)
+			values(#{idx}, #{memID}, #{title}, #{content}, #{writer}, #{boardGroup}, #{boardSequence}, #{boardLevel}, 1)
+
+  	</insert>
+
+
+	<select id ="totalCount" parameterType = "kr.bit.entity.Criteria" resultType = "int">
+		select count(*)
+		from tblBoard 
+		<include refid="search"/>		
+			
+	</select>
+
+
+</mapper>
